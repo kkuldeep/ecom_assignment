@@ -1,6 +1,6 @@
 import pytest
 from pyspark.sql import SparkSession
-from src.processing import get_sales_aggregations, enrich_orders
+from src.processing import get_sales_aggregations, get_profit_aggregations, enrich_orders
 from decimal import Decimal
 
 def test_monthly_sales_aggregations(spark, sample_data):
@@ -69,18 +69,27 @@ def test_aggregation_datatypes(spark, sample_data):
     products_df = sample_data["products"]
     enriched_orders = enrich_orders(orders_df, customers_df, products_df)
     
-    # Get aggregations
-    monthly_sales, customer_patterns = get_sales_aggregations(enriched_orders)
+    # Get aggregations for Task 4
+    profit_aggs = get_profit_aggregations(enriched_orders)
     
     # Check schema types
-    monthly_schema = monthly_sales.schema
-    customer_schema = customer_patterns.schema
+    schema = profit_aggs.schema
     
-    # Verify monthly sales schema
-    assert str(monthly_schema["Monthly Sales"].dataType) == "DecimalType(10,2)", \
-        "Monthly Sales should be Decimal(10,2)"
-    assert str(monthly_schema["Monthly Profit"].dataType) == "DecimalType(10,2)", \
-        "Monthly Profit should be Decimal(10,2)"
+    # Verify all required columns exist
+    required_columns = [
+        "Order Year", "Category", "Sub-Category", "Customer Name",
+        "Total Profit", "Total Sales", "Order Count", "Profit Margin"
+    ]
+    for col in required_columns:
+        assert col in profit_aggs.columns, f"Missing required column: {col}"
+    
+    # Verify numeric columns have correct precision
+    assert str(schema["Total Profit"].dataType) == "DecimalType(10,2)", \
+        "Total Profit should be Decimal(10,2)"
+    assert str(schema["Total Sales"].dataType) == "DecimalType(10,2)", \
+        "Total Sales should be Decimal(10,2)"
+    assert str(schema["Profit Margin"].dataType) == "DecimalType(10,2)", \
+        "Profit Margin should be Decimal(10,2)"
     
     # Verify customer patterns schema
     assert str(customer_schema["Average Order Value"].dataType) == "DecimalType(10,2)", \

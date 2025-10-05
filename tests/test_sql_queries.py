@@ -1,7 +1,45 @@
 import pytest
 from pyspark.sql import SparkSession
-from src.processing import enrich_orders
+from src.processing import enrich_orders, get_sql_profit_analysis
 from decimal import Decimal
+from pyspark.sql.types import DecimalType, IntegerType
+
+def test_sql_profit_queries(spark, sample_data):
+    """Test all profit analysis SQL queries"""
+    # Setup enriched orders
+    enriched_orders = enrich_orders(
+        sample_data["orders"], 
+        sample_data["customers"], 
+        sample_data["products"]
+    )
+    
+    # Execute all SQL queries
+    results = get_sql_profit_analysis(spark, enriched_orders)
+    
+    # Test yearly profit query
+    yearly_profit = results["yearly_profit"]
+    assert "Order_Year" in yearly_profit.columns
+    assert "Total_Profit" in yearly_profit.columns
+    assert isinstance(yearly_profit.schema["Total_Profit"].dataType, DecimalType)
+    assert yearly_profit.count() > 0
+    
+    # Test category profit query
+    category_profit = results["category_profit"]
+    assert all(col in category_profit.columns for col in ["Order_Year", "Category"])
+    assert isinstance(category_profit.schema["Total_Sales"].dataType, DecimalType)
+    assert category_profit.count() > 0
+    
+    # Test customer profit query
+    customer_profit = results["customer_profit"]
+    assert "Customer_Name" in customer_profit.columns
+    assert isinstance(customer_profit.schema["Avg_Order_Value"].dataType, DecimalType)
+    assert customer_profit.count() > 0
+    
+    # Test customer yearly profit query
+    customer_yearly = results["customer_yearly_profit"]
+    assert all(col in customer_yearly.columns for col in ["Customer_Name", "Order_Year"])
+    assert isinstance(customer_yearly.schema["Profit_Margin"].dataType, DecimalType)
+    assert customer_yearly.count() > 0
 
 def test_category_sales_query(spark, sample_data):
     """Test category sales and customer count query"""
