@@ -1,0 +1,6 @@
+Metadata-Version: 2.1
+Name: ecommerce-processing
+Version: 0.1
+Requires-Dist: pyspark>=3.5.0
+Requires-Dist: pandas>=2.1.0
+Requires-Dist: openpyxl>=3.1.2
