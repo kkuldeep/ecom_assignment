@@ -7,16 +7,26 @@ This project processes e-commerce data using PySpark, performing various transfo
 ```
 ecom_assignment/
 ├─ README.md
+├─ data/                 # Input data files
+│  ├─ Customer.xlsx      
+│  ├─ Orders.json       
+│  └─ Products.csv       
+├─ logs/                 # Processing and ETL logs
+│  └─ ecommerce_etl.log  
 ├─ notebooks/
 │  ├─ 01_ingest_and_raw_tables.ipynb
 │  └─ 02_transform_and_enrich.ipynb
 ├─ src/
-│  └─ processing.py
+│  ├─ __init__.py
+│  ├─ config.py         # Configuration settings and constants
+│  └─ processing.py     # Core data processing functions
 ├─ tests/
-│  ├─ conftest.py
+│  ├─ conftest.py       # Pytest fixtures and configurations
 │  ├─ test_customers_products.py
 │  ├─ test_enriched_orders.py
 │  ├─ test_aggregations.py
+│  ├─ test_config.py    
+│  ├─ test_spark.py     
 │  └─ test_sql_queries.py
 └─ requirements.txt
 ```
@@ -55,17 +65,55 @@ pytest -v
    - Order enrichment
    - Aggregation and metrics
 
+## Data Files
+
+The project uses three main data files:
+
+1. `Customer.xlsx`: Customer information
+   - Demographics and customer details
+   - Customer segmentation attributes
+   - Contact information
+
+2. `Orders.json`: Order transactions
+   - Order details and timestamps
+   - Customer purchase history
+   - Product quantities and amounts
+
+3. `Products.csv`: Product catalog
+   - Product details and categories
+   - Pricing information
+   - Inventory data
+
 ## Data Processing
 
-The main processing logic is in `src/processing.py` and includes:
-- Customer metrics and segmentation
-- Product performance analysis
-- Order enrichment
-- Various aggregations
+The main processing logic is distributed across the following files:
+
+1. `src/config.py`:
+   - Configuration settings
+   - Data schema definitions
+   - Environment variables
+
+2. `src/processing.py`:
+   - Customer metrics and segmentation
+   - Product performance analysis
+   - Order enrichment
+   - Various aggregations
 
 ## Tests
 
-- `test_customers_products.py`: Test customer segmentation and product metrics
-- `test_enriched_orders.py`: Test order enrichment process
-- `test_aggregations.py`: Test aggregation calculations
-- `test_sql_queries.py`: Test SQL query functionality
+The test suite covers various aspects of the data processing pipeline:
+
+1. Core Functionality Tests:
+   - `test_customers_products.py`: Customer segmentation and product metrics
+   - `test_enriched_orders.py`: Order enrichment process
+   - `test_aggregations.py`: Aggregation calculations
+   - `test_sql_queries.py`: SQL query functionality
+
+2. Infrastructure Tests:
+   - `test_config.py`: Configuration settings validation
+   - `test_spark.py`: Spark session and context management
+
+3. Test Configuration:
+   - `conftest.py`: Pytest fixtures and shared resources
+   - Sample data generation
+   - Spark session management
