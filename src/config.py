@@ -6,6 +6,8 @@ class SparkConfig:
     """Spark configuration settings"""
     APP_NAME = "EcommerceDataProcessing"
     MASTER = "local[*]"
+    DRIVER_MEMORY = "2g"
+    EXECUTOR_MEMORY = "2g"
     
     @staticmethod
     def get_spark_configs():
@@ -35,7 +37,31 @@ class LoggingConfig:
     LOG_FILE = "../logs/ecommerce_etl.log"
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
     LOG_LEVEL = "INFO"
+    MAX_MEMORY_USAGE = 0.8      # 80% memory usage threshold
+    SLOW_QUERY_THRESHOLD = 10.0 # Slow query threshold in seconds
 
 def get_spark_configs():
     """Helper function to get Spark configurations"""
     return SparkConfig.get_spark_configs()
+
+def validate_config():
+    """Validate configuration settings"""
+    # Validate memory settings
+    if not SparkConfig.DRIVER_MEMORY.endswith('g') and not SparkConfig.DRIVER_MEMORY.endswith('m'):
+        raise ValueError("Invalid DRIVER_MEMORY format")
+    
+    if not SparkConfig.EXECUTOR_MEMORY.endswith('g') and not SparkConfig.EXECUTOR_MEMORY.endswith('m'):
+        raise ValueError("Invalid EXECUTOR_MEMORY format")
+    
+    # Validate thresholds
+    if BusinessConfig.HIGH_VALUE_THRESHOLD <= BusinessConfig.MEDIUM_VALUE_THRESHOLD:
+        raise ValueError("HIGH_VALUE_THRESHOLD must be greater than MEDIUM_VALUE_THRESHOLD")
+    
+    # Validate logging
+    if LoggingConfig.MAX_MEMORY_USAGE <= 0 or LoggingConfig.MAX_MEMORY_USAGE > 1:
+        raise ValueError("MAX_MEMORY_USAGE must be between 0 and 1")
+    
+    if LoggingConfig.SLOW_QUERY_THRESHOLD <= 0:
+        raise ValueError("SLOW_QUERY_THRESHOLD must be positive")
+    
+    return True
