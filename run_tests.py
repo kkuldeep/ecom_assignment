@@ -1,14 +1,17 @@
+#!/usr/bin/env python3
 """
-Primary Tests for E-commerce Analytics Pipeline
-Validates core business logic with environment-independent approach
-Primary testing approach for all environments
+Test Runner Script - Demonstrates TDD Strategy
+Shows difference between unit tests (sample data) and integration tests (actual data)
 """
 
-import json
+import subprocess
+import sys
+import time
+import os
 import csv
+import json
 import pathlib
 import ast
-import os
 
 def test_data_integrity():
     """Test all data files can be loaded and have correct structure"""

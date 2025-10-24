@@ -5,11 +5,25 @@ from datetime import datetime, timedelta
 
 @pytest.fixture(scope="session")
 def spark():
-    """Create a Spark session for testing"""
-    return SparkSession.builder \
+    """Create a Spark session for testing - Python 3.13 compatible"""
+    from src.config import get_spark_configs
+    
+    builder = SparkSession.builder \
         .appName("EcommerceTest") \
-        .master("local[*]") \
-        .getOrCreate()
+        .master("local[1]")
+    
+    # Add Windows + Python 3.13 compatible configs
+    try:
+        configs = get_spark_configs()
+        for key, value in configs.items():
+            builder = builder.config(key, value)
+    except:
+        # Fallback configs if import fails
+        builder = builder \
+            .config("spark.sql.execution.arrow.pyspark.enabled", "false") \
+            .config("spark.python.worker.reuse", "false")
+    
+    return builder.getOrCreate()
 
 @pytest.fixture(scope="session")
 def sample_data(spark):
@@ -65,3 +79,31 @@ def sample_data(spark):
         "products": products_df,
         "orders": orders_df
     }
+
+@pytest.fixture(scope="session")
+def actual_data(spark):
+    """Load actual data files for integration testing"""
+    try:
+        # Try to load actual files
+        customers_df = spark.read \
+            .format("com.crealytics.spark.excel") \
+            .option("header", "true") \
+            .option("inferSchema", "true") \
+            .load("data/Customer.xlsx")
+        
+        orders_df = spark.read \
+            .option("multiline", "true") \
+            .json("data/Orders.json")
+        
+        products_df = spark.read \
+            .option("header", "true") \
+            .option("inferSchema", "true") \
+            .csv("data/Products.csv")
+        
+        return {
+            "customers": customers_df,
+            "products": products_df,
+            "orders": orders_df
+        }
+    except Exception as e:
+        pytest.skip(f"Actual data files not available: {e}")

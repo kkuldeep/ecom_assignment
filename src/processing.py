@@ -1,10 +1,16 @@
 import logging
+import os
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, sum, avg, count, year, month
 from pyspark.sql.functions import round as spark_round, when, current_date, datediff
 from pyspark.sql.window import Window
 from pyspark.sql.types import *
 from .config import SparkConfig, BusinessConfig, LoggingConfig, get_spark_configs
+
+# Ensure logs directory exists
+log_dir = os.path.dirname(LoggingConfig.LOG_FILE)
+if log_dir and not os.path.exists(log_dir):
+    os.makedirs(log_dir, exist_ok=True)
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -13,11 +19,38 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
+def _add_customer_segment(df):
+    """Add customer value segment based on total sales"""
+    return df.withColumn(
+        "Customer Segment",
+        when(col("Total Sales") > BusinessConfig.HIGH_VALUE_THRESHOLD, "High Value")
+        .when(col("Total Sales") > BusinessConfig.MEDIUM_VALUE_THRESHOLD, "Medium Value")
+        .otherwise("Regular")
+    )
+
+def _add_activity_status(df):
+    """Add customer activity status based on days since last order"""
+    return df.withColumn(
+        "Activity Status",
+        when(col("Days Since Order") <= BusinessConfig.RECENT_ORDERS_DAYS, "Active")
+        .when(col("Days Since Order") > BusinessConfig.INACTIVE_CUSTOMER_DAYS, "Inactive")
+        .otherwise("At Risk")
+    )
+
 def init_spark(name=SparkConfig.APP_NAME):
-    spark = SparkSession.builder.appName(name).master(SparkConfig.MASTER)
+    spark = SparkSession.builder \
+        .appName(name) \
+        .master(SparkConfig.MASTER) \
+        .config("spark.sql.execution.arrow.pyspark.enabled", "false") \
+        .config("spark.python.worker.reuse", "false") \
+        .config("spark.executor.instances", "1") \
+        .config("spark.default.parallelism", "1") \
+        .config("spark.sql.shuffle.partitions", "1")
+    
     configs = get_spark_configs()
     for k, v in configs.items():
         spark = spark.config(k, v)
+    
     return spark.getOrCreate()
 
 def get_customer_metrics(orders_df, customers_df):
@@ -44,21 +77,11 @@ def get_customer_metrics(orders_df, customers_df):
     # Join metrics with last order dates
     results = stats.join(last_order_dates, "Customer ID")
     
-    # Add customer value segment
-    results = results.withColumn(
-        "Customer Segment",
-        when(col("Total Sales") > BusinessConfig.HIGH_VALUE_THRESHOLD, "High Value")
-        .when(col("Total Sales") > BusinessConfig.MEDIUM_VALUE_THRESHOLD, "Medium Value")
-        .otherwise("Regular")
-    )
+    # Apply customer classifications
+    results = _add_customer_segment(results)
+    results = _add_activity_status(results)
     
-    # Add activity status
-    return results.withColumn(
-        "Activity Status",
-        when(col("Days Since Order") <= BusinessConfig.RECENT_ORDERS_DAYS, "Active")
-        .when(col("Days Since Order") > BusinessConfig.INACTIVE_CUSTOMER_DAYS, "Inactive")
-        .otherwise("At Risk")
-    )
+    return results
 
 def analyze_product_performance(orders_df, products_df):
     # Join orders with products
@@ -104,22 +127,16 @@ def enrich_orders(orders, customers, products):
         "Product ID"
     )
     
-    # Add date components
     df = df.withColumn("Order Month", month("Order Date"))
     df = df.withColumn("Order Year", year("Order Date"))
-    
-    # Round Profit to 2 decimal places
     df = df.withColumn("Profit", spark_round(col("Profit"), 2))
     
-    # Ensure all required columns are present
     required_columns = [
         "Order ID", "Customer ID", "Customer Name", "Country",
         "Product ID", "Product Name", "Category", "Sub-Category",
         "Order Date", "Order Year", "Order Month",
         "Quantity", "Sales", "Profit"
     ]
-    
-    # Verify all required columns exist
     missing_cols = [col for col in required_columns if col not in df.columns]
     if missing_cols:
         raise ValueError(f"Missing required columns: {missing_cols}")
